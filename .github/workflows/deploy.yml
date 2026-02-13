@@ -14,43 +14,38 @@ env:
 
 jobs:
   deploy:
-    # OIDCトークン発行のために必須
     permissions:
       contents: 'read'
       id-token: 'write'
 
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Direct Workload Identity Federationによる認証
       - name: Google Auth
         id: auth
         uses: 'google-github-actions/auth@v2'
         with:
           project_id: '${{ env.PROJECT_ID }}'
           workload_identity_provider: '${{ secrets.WIF_PROVIDER }}'
+          service_account: '${{ secrets.WIF_SERVICE_ACCOUNT }}'
 
-      # gcloudコマンドのセットアップ (ここを追加)
       - name: Set up Cloud SDK
         uses: 'google-github-actions/setup-gcloud@v2'
         with:
-          version: '>= 363.0.0'
           project_id: '${{ env.PROJECT_ID }}'
+          version: '>= 363.0.0'
 
-      # Cloud Build にビルドとプッシュを依頼 (ここを変更)
-      # ローカル(GitHub Actions)のソースをGCPにアップロードし、Cloud Build上でビルド＆プッシュします
       - name: Build and Push with Cloud Build
         run: |-
           gcloud builds submit \
             --quiet \
             --tag "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE }}:${{ github.sha }}" \
-            --project_id${{ env.PROJECT_ID }} \
+            --project="${{ env.PROJECT_ID }}" \
             .
 
-      # Cloud Runへのデプロイ (ここは変更なし)
-      # Cloud Buildによってプッシュされた上記のimageタグを指定します
       - name: Deploy to Cloud Run
         id: deploy
         uses: 'google-github-actions/deploy-cloudrun@v2'
